@@ -221,14 +221,15 @@ class Plugin(PluginInstance, IndexQueryHandler):
     def _create_filters(self, item: dict):
         filters = item["title"]
         if self._filter_by_tags:
-            filters += item.get("tags") or ""
+            filters += "," + str(item.get("tags"))
         if self._filter_by_type:
-            filters += item.get("document_type") or ""
+            filters += "," + str(item.get("document_type"))
         if self._filter_by_correspondent:
-            filters += item.get("correspondent") or ""
+            filters += "," + str(item.get("correspondent"))
         if self._filter_by_body:
-            filters += item.get("body") or ""
-        return filters
+            filters += "," + str(item.get("body"))
+        print(filters)
+        return filters.lower()
 
     def _gen_item(self, document: object):
         preview_url = "{}/api/documents/{}/preview/".format(self._instance_url, document["id"])
