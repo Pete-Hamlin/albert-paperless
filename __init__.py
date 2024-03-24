@@ -1,16 +1,15 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from socket import timeout
 from threading import Event, Thread
-from time import perf_counter_ns, sleep
+from time import perf_counter_ns
 from urllib import parse
 
 import requests
 from albert import *
 
 md_iid = "2.2"
-md_version = "3.0"
+md_version = "3.1"
 md_name = "Paperless"
 md_description = "Manage saved documents via a paperless instance"
 md_license = "MIT"
@@ -40,7 +39,7 @@ class DocumentFetcherThread(Thread):
 class Plugin(PluginInstance, IndexQueryHandler):
     iconUrls = [f"file:{Path(__file__).parent}/paperless.png"]
     limit = 100
-    headers = {"User-Agent": "org.albert.paperless"}
+    user_agent = "org.albert.paperless"
 
     def __init__(self):
         IndexQueryHandler.__init__(
@@ -49,8 +48,7 @@ class Plugin(PluginInstance, IndexQueryHandler):
         PluginInstance.__init__(self, extensions=[self])
 
         self._instance_url = self.readConfig("instance_url", str) or "http://localhost:8000"
-        self._username = self.readConfig("username", str) or ""
-        self._password = self.readConfig("password", str) or ""
+        self._api_key = self.readConfig("api_key", str) or ""
         self._download_path = self.readConfig("download_path", str) or "~/Downloads"
 
         self._filter_by_tags = self.readConfig("filter_by_tags", bool) or True
@@ -81,22 +79,13 @@ class Plugin(PluginInstance, IndexQueryHandler):
         self.writeConfig("instance_url", value)
 
     @property
-    def username(self):
-        return self._username
+    def api_key(self):
+        return self._api_key
 
-    @username.setter
-    def username(self, value):
-        self._username = value
-        self.writeConfig("username", value)
-
-    @property
-    def password(self):
-        return self._password
-
-    @password.setter
-    def password(self, value):
-        self._password = value
-        self.writeConfig("password", value)
+    @api_key.setter
+    def api_key(self, value):
+        self._api_key = value
+        self.writeConfig("api_key", value)
 
     @property
     def download_path(self):
@@ -162,11 +151,10 @@ class Plugin(PluginInstance, IndexQueryHandler):
     def configWidget(self):
         return [
             {"type": "lineedit", "property": "instance_url", "label": "URL"},
-            {"type": "lineedit", "property": "username", "label": "Username"},
             {
                 "type": "lineedit",
-                "property": "password",
-                "label": "Password",
+                "property": "api_key",
+                "label": "API key",
                 "widget_properties": {"echoMode": "Password"},
             },
             {"type": "lineedit", "property": "download_path", "label": "Download Path"},
@@ -228,7 +216,6 @@ class Plugin(PluginInstance, IndexQueryHandler):
             filters += "," + str(item.get("correspondent"))
         if self._filter_by_body:
             filters += "," + str(item.get("body"))
-        print(filters)
         return filters.lower()
 
     def _gen_item(self, document: object):
@@ -254,7 +241,8 @@ class Plugin(PluginInstance, IndexQueryHandler):
         )
 
     def _download_document(self, url: str):
-        response = requests.get(url, timeout=5, auth=(self._username, self._password))
+        headers = {"User-Agent": self.user_agent, "Authorization": f"Token {self._api_key}"}
+        response = requests.get(url, timeout=5, headers=headers)
         if response.ok:
             header = (
                 response.headers.get("Content-Disposition").split("'")[1].replace(" ", "_") or "albert_paperless_dl.pdf"
@@ -323,7 +311,8 @@ class Plugin(PluginInstance, IndexQueryHandler):
     def _fetch_request(self, url: str):
         while url:
             debug(f"GET request to {url}")
-            response = requests.get(url, headers=self.headers, timeout=5, auth=(self._username, self._password))
+            headers = {"User-Agent": self.user_agent, "Authorization": f"Token {self._api_key}"}
+            response = requests.get(url, headers=headers, timeout=5)
             debug(f"Got response {response.status_code}")
             if response.ok:
                 result = response.json()
@@ -331,3 +320,4 @@ class Plugin(PluginInstance, IndexQueryHandler):
                 yield result["results"]
             else:
                 warning(f"Got response {response.status_code} querying {url}")
+                url = None
