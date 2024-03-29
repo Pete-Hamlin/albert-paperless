@@ -9,7 +9,7 @@ import requests
 from albert import *
 
 md_iid = "2.2"
-md_version = "3.1"
+md_version = "3.2"
 md_name = "Paperless"
 md_description = "Manage saved documents via a paperless instance"
 md_license = "MIT"
@@ -38,7 +38,7 @@ class DocumentFetcherThread(Thread):
 
 class Plugin(PluginInstance, IndexQueryHandler):
     iconUrls = [f"file:{Path(__file__).parent}/paperless.png"]
-    limit = 100
+    limit = 250
     user_agent = "org.albert.paperless"
 
     def __init__(self):
@@ -273,19 +273,19 @@ class Plugin(PluginInstance, IndexQueryHandler):
             return next(parsed["name"] for parsed in self._correspondents if parsed["id"] == correspondent)
 
     def _fetch_documents(self):
-        params = {"limit": self.limit}
+        params = {"page_size": self.limit}
         url = f"{self._instance_url}/api/documents/?{parse.urlencode(params)}"
         documents = (document for document_list in self._fetch_request(url) for document in document_list)
 
         # This allows us to only run expensive parse functions once at the point of data ingress
         if self._filter_by_tags:
-            self._tags = self._fetch_tags()
+            self._tags = self._fetch_tags(params)
             documents = self._field_map(documents, "tags", self._parse_tags)
         if self._filter_by_type:
-            self._types = self._fetch_types()
+            self._types = self._fetch_types(params)
             documents = self._field_map(documents, "document_type", self._parse_type)
         if self._filter_by_correspondent:
-            self._correspondents = self._fetch_correspondents()
+            self._correspondents = self._fetch_correspondents(params)
             documents = self._field_map(documents, "correspondent", self._parse_correspondent)
 
         return documents
@@ -296,21 +296,21 @@ class Plugin(PluginInstance, IndexQueryHandler):
                 item[field] = callback(item[field])
             yield item
 
-    def _fetch_tags(self):
-        url = f"{self._instance_url}/api/tags/"
+    def _fetch_tags(self, params):
+        url = f"{self._instance_url}/api/tags/?{parse.urlencode(params)}"
         return [tag for tag_list in self._fetch_request(url) for tag in tag_list]
 
-    def _fetch_types(self):
-        url = f"{self._instance_url}/api/document_types/"
+    def _fetch_types(self, params):
+        url = f"{self._instance_url}/api/document_types/?{parse.urlencode(params)}"
         return [doctype for type_list in self._fetch_request(url) for doctype in type_list]
 
-    def _fetch_correspondents(self):
-        url = f"{self._instance_url}/api/correspondents/"
+    def _fetch_correspondents(self, params):
+        url = f"{self._instance_url}/api/correspondents/?{parse.urlencode(params)}"
         return [correspondent for corr_list in self._fetch_request(url) for correspondent in corr_list]
 
     def _fetch_request(self, url: str):
         while url:
-            debug(f"GET request to {url}")
+            info(f"GET request to {url}")
             headers = {"User-Agent": self.user_agent, "Authorization": f"Token {self._api_key}"}
             response = requests.get(url, headers=headers, timeout=5)
             debug(f"Got response {response.status_code}")
