@@ -310,7 +310,7 @@ class Plugin(PluginInstance, IndexQueryHandler):
 
     def _fetch_request(self, url: str):
         while url:
-            info(f"GET request to {url}")
+            debug(f"GET request to {url}")
             headers = {"User-Agent": self.user_agent, "Authorization": f"Token {self._api_key}"}
             response = requests.get(url, headers=headers, timeout=5)
             debug(f"Got response {response.status_code}")
