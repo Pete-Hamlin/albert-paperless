@@ -8,8 +8,8 @@ from urllib import parse
 import requests
 from albert import *
 
-md_iid = "2.2"
-md_version = "3.2"
+md_iid = "2.3"
+md_version = "3.3"
 md_name = "Paperless"
 md_description = "Manage saved documents via a paperless instance"
 md_license = "MIT"
@@ -42,10 +42,10 @@ class Plugin(PluginInstance, IndexQueryHandler):
     user_agent = "org.albert.paperless"
 
     def __init__(self):
+        PluginInstance.__init__(self)
         IndexQueryHandler.__init__(
-            self, id=md_id, name=md_name, description=md_description, synopsis="<document>", defaultTrigger="pl "
+            self, id=self.id, name=self.name, description=self.description, synopsis="<document>", defaultTrigger="pl "
         )
-        PluginInstance.__init__(self, extensions=[self])
 
         self._instance_url = self.readConfig("instance_url", str) or "http://localhost:8000"
         self._api_key = self.readConfig("api_key", str) or ""
@@ -62,10 +62,11 @@ class Plugin(PluginInstance, IndexQueryHandler):
         self._types = []
         self._correspondents = []
 
+        self.updateIndexItems()
         self._thread = DocumentFetcherThread(callback=self.updateIndexItems, cache_length=self._cache_length)
         self._thread.start()
 
-    def finalize(self):
+    def __del__(self):
         self._thread.stop()
         self._thread.join()
 
@@ -165,35 +166,6 @@ class Plugin(PluginInstance, IndexQueryHandler):
             {"type": "spinbox", "property": "cache_length", "label": "Cache length (minutes)"},
         ]
 
-    # def handleTriggerQuery(self, query):
-    #     stripped = query.string.strip()
-    #     if stripped:
-    #         # avoid spamming server
-    #         for _ in range(50):
-    #             sleep(0.01)
-    #             if not query.isValid:
-    #                 return
-
-    #         data = self.get_results()
-    #         documents = (item for item in data if stripped in self.create_filters(item))
-    #         items = [item for item in self.gen_items(documents)]
-    #         query.add(items)
-    #     else:
-    #         query.add(
-    #             StandardItem(
-    #                 id=md_id, text=md_name, subtext="Search for a document in Paperless", iconUrls=self.iconUrls
-    #             )
-    #         )
-    #         if self._cache_results:
-    #             query.add(
-    #                 StandardItem(
-    #                     id=md_id,
-    #                     text="Refresh cache",
-    #                     subtext="Refresh cached documents",
-    #                     iconUrls=["xdg:view-refresh"],
-    #                     actions=[Action("refresh", "Refresh document cache", lambda: self.refresh_cache())],
-    #                 )
-    #             )
 
     def updateIndexItems(self):
         start = perf_counter_ns()
@@ -205,6 +177,25 @@ class Plugin(PluginInstance, IndexQueryHandler):
             index_items.append(IndexItem(item=item, string=filter))
         self.setIndexItems(index_items)
         info("Indexed {} documents [{:d} ms]".format(len(index_items), (int(perf_counter_ns() - start) // 1000000)))
+
+    def handleTriggerQuery(self, query):
+        stripped = query.string.strip()
+        if stripped:
+            TriggerQueryHandler.handleTriggerQuery(self, query)
+            query.add(
+                StandardItem(
+                    text="Refresh cache index",
+                    subtext="Refresh indexed links",
+                    iconUrls=["xdg:view-refresh"],
+                    actions=[Action("refresh", "Refresh paperless index", lambda: self.updateIndexItems())],
+                )
+            )
+        else:
+            query.add(
+                StandardItem(
+                    text=self.name, subtext="Search for a document in Paperless", iconUrls=self.iconUrls
+                )
+            )
 
     def _create_filters(self, item: dict):
         filters = item["title"]
@@ -222,7 +213,7 @@ class Plugin(PluginInstance, IndexQueryHandler):
         preview_url = "{}/api/documents/{}/preview/".format(self._instance_url, document["id"])
         download_url = "{}/api/documents/{}/download/".format(self._instance_url, document["id"])
         return StandardItem(
-            id=md_id,
+            id=self.id,
             text=document["title"],
             subtext=" - ".join(
                 [
