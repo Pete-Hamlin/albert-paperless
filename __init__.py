@@ -182,20 +182,20 @@ class Plugin(PluginInstance, IndexQueryHandler):
         stripped = query.string.strip()
         if stripped:
             TriggerQueryHandler.handleTriggerQuery(self, query)
-            query.add(
-                StandardItem(
-                    text="Refresh cache index",
-                    subtext="Refresh indexed links",
-                    iconUrls=["xdg:view-refresh"],
-                    actions=[Action("refresh", "Refresh paperless index", lambda: self.updateIndexItems())],
-                )
-            )
         else:
             query.add(
                 StandardItem(
                     text=self.name, subtext="Search for a document in Paperless", iconUrls=self.iconUrls
                 )
             )
+        query.add(
+            StandardItem(
+                text="Refresh cache index",
+                subtext="Refresh indexed links",
+                iconUrls=["xdg:view-refresh"],
+                actions=[Action("refresh", "Refresh paperless index", lambda: self.updateIndexItems())],
+            )
+        )
 
     def _create_filters(self, item: dict):
         filters = item["title"]
@@ -209,7 +209,7 @@ class Plugin(PluginInstance, IndexQueryHandler):
             filters += "," + str(item.get("body"))
         return filters.lower()
 
-    def _gen_item(self, document: object):
+    def _gen_item(self, document: dict):
         preview_url = "{}/api/documents/{}/preview/".format(self._instance_url, document["id"])
         download_url = "{}/api/documents/{}/download/".format(self._instance_url, document["id"])
         return StandardItem(
@@ -227,7 +227,7 @@ class Plugin(PluginInstance, IndexQueryHandler):
                 Action("download", "Download document", lambda u=download_url: self._download_document(u)),
                 Action("open", "Open document in browser", lambda u=preview_url: openUrl(u)),
                 Action("copy", "Copy preview URL to clipboard", lambda u=preview_url: setClipboardText(u)),
-                Action("copy-dl", "Copy preview URL to clipboard", lambda u=download_url: setClipboardText(u)),
+                Action("copy-dl", "Copy download URL to clipboard", lambda u=download_url: setClipboardText(u)),
             ],
         )
 
@@ -236,7 +236,7 @@ class Plugin(PluginInstance, IndexQueryHandler):
         response = requests.get(url, timeout=5, headers=headers)
         if response.ok:
             header = (
-                response.headers.get("Content-Disposition").split("'")[1].replace(" ", "_") or "albert_paperless_dl.pdf"
+                response.headers.get("Content-Disposition", "").split("'")[1].replace(" ", "_") or "albert_paperless_dl.pdf"
             )
             local_file = Path(self._download_path).expanduser() / header
             with local_file.open(mode="wb") as dl_file:
@@ -247,13 +247,14 @@ class Plugin(PluginInstance, IndexQueryHandler):
     def _parse_tags(self, tags: list[int]):
         return ",".join(self._parse_tag(tag) for tag in tags)
 
-    def _parse_tag(self, tag: int):
+    def _parse_tag(self, tag: int) -> str:
         if tag:
             try:
                 return next(parsed["name"] for parsed in self._tags if parsed["id"] == tag)
             except StopIteration:
                 warning(f"Error parsing tag {tag}")
                 return f"<tag-{tag}>"
+        return ""
 
     def _parse_type(self, doctype: int):
         if doctype:
@@ -281,7 +282,7 @@ class Plugin(PluginInstance, IndexQueryHandler):
 
         return documents
 
-    def _field_map(self, seq: object, field: str, callback: object):
+    def _field_map(self, seq, field: str, callback):
         for item in seq:
             if item.get(field):
                 item[field] = callback(item[field])
@@ -299,7 +300,7 @@ class Plugin(PluginInstance, IndexQueryHandler):
         url = f"{self._instance_url}/api/correspondents/?{parse.urlencode(params)}"
         return [correspondent for corr_list in self._fetch_request(url) for correspondent in corr_list]
 
-    def _fetch_request(self, url: str):
+    def _fetch_request(self, url: str | None):
         while url:
             debug(f"GET request to {url}")
             headers = {"User-Agent": self.user_agent, "Authorization": f"Token {self._api_key}"}
