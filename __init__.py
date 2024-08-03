@@ -9,7 +9,7 @@ import requests
 from albert import *
 
 md_iid = "2.3"
-md_version = "3.3"
+md_version = "3.4"
 md_name = "Paperless"
 md_description = "Manage saved documents via a paperless instance"
 md_license = "MIT"
@@ -62,7 +62,6 @@ class Plugin(PluginInstance, IndexQueryHandler):
         self._types = []
         self._correspondents = []
 
-        self.updateIndexItems()
         self._thread = DocumentFetcherThread(callback=self.updateIndexItems, cache_length=self._cache_length)
         self._thread.start()
 
@@ -233,7 +232,11 @@ class Plugin(PluginInstance, IndexQueryHandler):
 
     def _download_document(self, url: str):
         headers = {"User-Agent": self.user_agent, "Authorization": f"Token {self._api_key}"}
-        response = requests.get(url, timeout=5, headers=headers)
+        try:
+            response = requests.get(url, timeout=5, headers=headers)
+        except requests.ConnectionError:
+            warning(f"Unable to connect to {self._instance_url}")
+            return
         if response.ok:
             header = (
                 response.headers.get("Content-Disposition", "").split("'")[1].replace(" ", "_") or "albert_paperless_dl.pdf"
@@ -304,7 +307,11 @@ class Plugin(PluginInstance, IndexQueryHandler):
         while url:
             debug(f"GET request to {url}")
             headers = {"User-Agent": self.user_agent, "Authorization": f"Token {self._api_key}"}
-            response = requests.get(url, headers=headers, timeout=5)
+            try:
+                response = requests.get(url, headers=headers, timeout=5)
+            except requests.ConnectionError:
+                warning(f"Unable to connect to {self._instance_url}")
+                break
             debug(f"Got response {response.status_code}")
             if response.ok:
                 result = response.json()
@@ -312,4 +319,4 @@ class Plugin(PluginInstance, IndexQueryHandler):
                 yield result["results"]
             else:
                 warning(f"Got response {response.status_code} querying {url}")
-                url = None
+                break
