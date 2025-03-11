@@ -8,8 +8,8 @@ from urllib import parse
 import requests
 from albert import *
 
-md_iid = "2.3"
-md_version = "3.4"
+md_iid = "3.0"
+md_version = "3.6"
 md_name = "Paperless"
 md_description = "Manage saved documents via a paperless instance"
 md_license = "MIT"
@@ -43,9 +43,7 @@ class Plugin(PluginInstance, IndexQueryHandler):
 
     def __init__(self):
         PluginInstance.__init__(self)
-        IndexQueryHandler.__init__(
-            self, id=self.id, name=self.name, description=self.description, synopsis="<document>", defaultTrigger="pl "
-        )
+        IndexQueryHandler.__init__(self)
 
         self._instance_url = self.readConfig("instance_url", str) or "http://localhost:8000"
         self._api_key = self.readConfig("api_key", str) or ""
@@ -68,6 +66,9 @@ class Plugin(PluginInstance, IndexQueryHandler):
     def __del__(self):
         self._thread.stop()
         self._thread.join()
+
+    def defaultTrigger(self) -> str:
+        return "pl "
 
     @property
     def instance_url(self):
@@ -184,7 +185,7 @@ class Plugin(PluginInstance, IndexQueryHandler):
         else:
             query.add(
                 StandardItem(
-                    text=self.name, subtext="Search for a document in Paperless", iconUrls=self.iconUrls
+                    text=md_name, subtext="Search for a document in Paperless", iconUrls=self.iconUrls
                 )
             )
         query.add(
@@ -212,7 +213,7 @@ class Plugin(PluginInstance, IndexQueryHandler):
         preview_url = "{}/api/documents/{}/preview/".format(self._instance_url, document["id"])
         download_url = "{}/api/documents/{}/download/".format(self._instance_url, document["id"])
         return StandardItem(
-            id=self.id,
+            id=str(self.id),
             text=document["title"],
             subtext=" - ".join(
                 [
