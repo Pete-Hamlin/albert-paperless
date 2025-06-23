@@ -9,7 +9,7 @@ import requests
 from albert import *
 
 md_iid = "3.0"
-md_version = "3.7"
+md_version = "3.6.0"
 md_name = "Paperless"
 md_description = "Manage saved documents via a paperless instance"
 md_license = "MIT"
