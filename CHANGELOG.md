@@ -1,4 +1,14 @@
 
+<a name="3.6.1"></a>
+## [3.6.1] - 2025-07-31
+### Chore
+- Added changelog config & CHANGELOG file
+
+### Fix
+- Prevent duplication of index items in fetcher
+- Fix version number
+
+
 <a name="3.6.0"></a>
 ## [3.6.0] - 2025-05-30
 ### Feat
@@ -54,7 +64,8 @@
 - Separate from dev repo
 
 
-[Unreleased]: https://github.com/Pete-Hamlin/albert-paperless/compare/3.6.0...HEAD
+[Unreleased]: https://github.com/Pete-Hamlin/albert-paperless/compare/3.6.1...HEAD
+[3.6.1]: https://github.com/Pete-Hamlin/albert-paperless/compare/3.6.0...3.6.1
 [3.6.0]: https://github.com/Pete-Hamlin/albert-paperless/compare/3.5.0...3.6.0
 [3.5.0]: https://github.com/Pete-Hamlin/albert-paperless/compare/3.4.0...3.5.0
 [3.4.0]: https://github.com/Pete-Hamlin/albert-paperless/compare/3.3.0...3.4.0
