@@ -9,7 +9,7 @@ import requests
 from albert import *
 
 md_iid = "3.0"
-md_version = "3.6.0"
+md_version = "3.6.1"
 md_name = "Paperless"
 md_description = "Manage saved documents via a paperless instance"
 md_license = "MIT"
@@ -176,6 +176,7 @@ class Plugin(PluginInstance, IndexQueryHandler):
     def fetchIndexItems(self):
         start = perf_counter_ns()
         data = self._fetch_documents()
+        self._index_items = []
         for document in data:
             filter = self._create_filters(document)
             item = self._gen_item(document)
